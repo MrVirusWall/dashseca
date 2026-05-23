@@ -169,7 +169,7 @@ select.msel:focus{border-color:var(--neon)}
       <div id="fReal"></div>
     </div>
     <div class="panel">
-      <div class="ptitle">ACTIVIDAD POR ASESOR (ATO)</div>
+      <div class="ptitle">ACTIVIDAD POR ROL</div>
       <div class="acg" id="acG"></div>
     </div>
   </div>
@@ -460,12 +460,36 @@ function miniBar(el,items,color,valFn){
   el.innerHTML=items.map(([l,n])=>`<div class="mr"><div class="ml" title="${l}">${l||'Sin dato'}</div><div class="mbw"><div class="mbf" style="width:${n/max*100}%;background:${color};opacity:.7"></div></div><div class="mv">${valFn?valFn(n):n}</div></div>`).join('');
 }
 function fRows(steps){
+  // Embudo visual tipo trapecio SVG
   const max=Math.max(...steps.map(s=>s.n),1);
-  return steps.map((s,i)=>{
-    const pct=s.n/max*100;
-    const conv=i>0&&steps[i-1].n>0?'→'+(s.n/steps[i-1].n*100).toFixed(0)+'%':'';
-    return `<div class="frow"><div class="fl">${s.l}</div><div class="fbw"><div class="fb" style="width:${pct}%;background:${s.c};opacity:.8"></div></div><div class="fc" style="color:${s.c}">${s.n}</div><div class="fp">${conv}</div></div>`;
-  }).join('');
+  const W=500,rowH=52,gap=3,padX=10;
+  const totalH=steps.length*(rowH+gap);
+  let svg=`<svg viewBox="0 0 ${W} ${totalH}" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:600px;display:block">`;
+  steps.forEach((s,i)=>{
+    const pct=s.n/max;
+    const nextPct=i<steps.length-1?steps[i+1].n/max:pct*0.7;
+    const minW=60;
+    const wTop=minW+(W-minW-padX*2)*pct+padX;
+    const wBot=minW+(W-minW-padX*2)*nextPct+padX;
+    const xTop=(W-wTop)/2, xBot=(W-wBot)/2;
+    const y=i*(rowH+gap);
+    const conv=i>0&&steps[i-1].n>0?' →'+(s.n/steps[i-1].n*100).toFixed(0)+'%':'';
+    // Color con opacity
+    const col=s.c.replace('var(--','').replace(')','');
+    const colMap={'purple':'#b388ff','neon':'#00e5ff','yellow':'#ffd600','neon2':'#00b8d4','text2':'#7a90aa','green':'#00e676','red':'#ff3d3d','orange':'#ff9800'};
+    const hex=colMap[col]||'#00e5ff';
+    // Trapecio
+    svg+=`<polygon points="${xTop},${y} ${xTop+wTop},${y} ${xBot+wBot},${y+rowH} ${xBot},${y+rowH}" fill="${hex}" opacity="0.18"/>`;
+    svg+=`<polygon points="${xTop},${y} ${xTop+wTop},${y} ${xBot+wBot},${y+rowH} ${xBot},${y+rowH}" fill="none" stroke="${hex}" stroke-width="1" opacity="0.5"/>`;
+    // Label izq
+    svg+=`<text x="12" y="${y+rowH/2+4}" font-family="Share Tech Mono,monospace" font-size="9" fill="#7a90aa" letter-spacing="1">${s.l}</text>`;
+    // Número centro
+    svg+=`<text x="${W/2}" y="${y+rowH/2+6}" font-family="Oswald,sans-serif" font-size="20" font-weight="500" fill="${hex}" text-anchor="middle">${s.n.toLocaleString()}</text>`;
+    // Conversión der
+    if(conv) svg+=`<text x="${W-10}" y="${y+rowH/2+4}" font-family="Share Tech Mono,monospace" font-size="9" fill="${hex}" text-anchor="end" opacity="0.8">${conv}</text>`;
+  });
+  svg+='</svg>';
+  return svg;
 }
 function celdaN(v,color){return `<div style="text-align:center;color:${color||'var(--text)'};font-family:'Oswald',sans-serif;font-size:12px">${v}</div>`;}
 function celdaM(v,color){return `<div style="text-align:center;font-family:'Share Tech Mono',monospace;font-size:9px;color:${color||'var(--text2)'}">${v}</div>`;}
@@ -585,29 +609,47 @@ function renderAsesores(){
   const vis=fVis();
   const pres=fPres();
   const vend=fVendidos();
-  const card=(nombre,color,rol,visArr,presArr,vendArr,senaArr)=>{
-    return `<div class="acc">
-      <div class="acn" style="color:${color}">${nombre} <span style="font-size:8px;color:var(--text3);font-family:'Share Tech Mono',monospace">${rol}</span></div>
-      <div class="acs">VISITAS PPTO <span>${visArr.filter(v=>v['Estado_Visita']==='Realizada').length}</span></div>
+  const sena=fSenados();
+  // VL: todas las visitas del período (no solo presupuesto) para contar agendadas
+  const visAll=S.visitas.filter(v=>inMes(v['FechaHora_Visita']));
+  const xiom=visAll.filter(v=>esXiomara(v['Creador_Visita']));
+  const luisc=visAll.filter(v=>esLuisCarlos(v['Creador_Visita']));
+
+  const atoCard=(nombre,color,visArr,presArr,vendArr,senaArr)=>`
+    <div class="acc">
+      <div class="acn" style="color:${color}">${nombre}</div>
+      <div class="acs">VISITAS REALIZADAS <span style="color:var(--neon2)">${visArr.filter(v=>v['Estado_Visita']==='Realizada').length}</span></div>
       <div class="acs">PRESUPUESTOS <span style="color:var(--orange)">${presArr.length}</span></div>
       <div class="acs">SEÑADOS <span style="color:var(--yellow)">${senaArr.length}</span></div>
       <div class="acs">VENTAS <span style="color:var(--green);font-weight:700">${vendArr.length}</span></div>
     </div>`;
-  };
-  const sena=fSenados();
-  document.getElementById('acG').innerHTML=
-    card('SAÚL','var(--neon)','ATO',
+
+  const vlCard=(nombre,color,arr)=>`
+    <div class="acc">
+      <div class="acn" style="color:${color}">${nombre}</div>
+      <div class="acs">AGENDADAS <span>${arr.length}</span></div>
+      <div class="acs">REALIZADAS <span style="color:var(--green)">${arr.filter(v=>v['Estado_Visita']==='Realizada').length}</span></div>
+      <div class="acs">CANCELADAS <span style="color:var(--red)">${arr.filter(v=>v['Estado_Visita']==='Cancelada').length}</span></div>
+      <div class="acs">PENDIENTES <span style="color:var(--yellow)">${arr.filter(v=>v['Estado_Visita']==='Pendiente').length}</span></div>
+    </div>`;
+
+  document.getElementById('acG').innerHTML=`
+    <div style="font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--text3);letter-spacing:2px;margin-bottom:5px;grid-column:1/-1">ATO — CIERRE Y COBRANZA</div>
+    ${atoCard('SAÚL','var(--neon)',
       vis.filter(v=>esSaul(v['Asesor_Visita'])),
       pres.filter(p=>esSaul(p['Asesor_Presupuesto'])),
       vend.filter(p=>esSaul(p['Asesor_Presupuesto'])),
       sena.filter(p=>esSaul(p['Asesor_Presupuesto']))
-    )+
-    card('GABRIEL','var(--orange)','ATO',
+    )}
+    ${atoCard('GABRIEL','var(--orange)',
       vis.filter(v=>esGabriel(v['Asesor_Visita'])),
       pres.filter(p=>esGabriel(p['Asesor_Presupuesto'])),
       vend.filter(p=>esGabriel(p['Asesor_Presupuesto'])),
       sena.filter(p=>esGabriel(p['Asesor_Presupuesto']))
-    );
+    )}
+    <div style="font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--text3);letter-spacing:2px;margin:8px 0 5px;grid-column:1/-1">VL — CAPTACIÓN Y AGENDA</div>
+    ${vlCard('XIOMARA','var(--purple)',xiom)}
+    ${vlCard('LUIS CARLOS','var(--neon2)',luisc)}`;
 }
 
 function renderVisitas(){
