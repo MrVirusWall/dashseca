@@ -487,18 +487,25 @@ async function fetchMeta(){
     const{year,month}=getMesActual();
     const f=new Date(year,month,1),t=new Date(year,month+1,0);
     const df=f.toISOString().split('T')[0],dt=t.toISOString().split('T')[0];
-    // date_preset no sirve para histórico — usamos time_range con fechas exactas
-    // Esto funciona para cualquier mes pasado o presente
-    const params=new URLSearchParams({
-      fields:'name,status,insights{spend,actions,impressions,reach,cpm,cpc}',
-      time_range: JSON.stringify({since:df,until:dt}),
-      limit:'50',
-      access_token:CFG.META_TOKEN
-    });
-    const r=await fetch(`https://graph.facebook.com/v19.0/${CFG.META_ACCOUNT}/campaigns?`+params);
+    const timeRange=JSON.stringify({since:df,until:dt});
+    // Traer campañas con insights del período exacto
+    const url='https://graph.facebook.com/v19.0/'+CFG.META_ACCOUNT+'/campaigns'
+      +'?fields='+encodeURIComponent('name,status,insights.time_range('+timeRange+'){spend,actions,impressions,reach}')
+      +'&limit=50'
+      +'&access_token='+CFG.META_TOKEN;
+    const r=await fetch(url);
     const d=await r.json();
     if(d.error){console.warn('Meta API error:',d.error.message);return[];}
-    return d&&d.data?d.data:[];
+    const camps=d&&d.data?d.data:[];
+    // Log action types para debug
+    camps.forEach(c=>{
+      const ins=c.insights&&c.insights.data&&c.insights.data[0];
+      if(ins&&ins.actions){
+        const types=ins.actions.map(a=>a.action_type+'='+a.value).join(', ');
+        console.log('Campaña "'+c.name+'" actions:',types,'spend:'+ins.spend);
+      }
+    });
+    return camps;
   }catch(e){console.warn('fetchMeta error:',e);return[];}
 }
 
@@ -557,8 +564,10 @@ function renderFunnel(){
   let mL=0;
   S.metaCampanas.forEach(c=>{
     const ins=c.insights&&c.insights.data&&c.insights.data[0];if(!ins)return;
-    const la=(ins.actions||[]).find(a=>a.action_type==='lead'||a.action_type==='onsite_conversion.messaging_conversation_started_7d');
-    if(la)mL+=parseInt(la.value||0);
+    // Sumar TODOS los tipos de lead que Meta registra
+    const leadTypes=['lead','onsite_conversion.messaging_conversation_started_7d',
+      'onsite_conversion.lead_grouped','contact','onsite_conversion.total_messaging_connection'];
+    (ins.actions||[]).forEach(a=>{if(leadTypes.includes(a.action_type))mL+=parseInt(a.value||0);});
   });
   document.getElementById('fReal').innerHTML=fRows([
     {l:'LEADS META',       n:mL,           c:'var(--purple)'},
@@ -715,8 +724,9 @@ function renderCruce(){
   S.metaCampanas.forEach(c=>{
     const ins=c.insights&&c.insights.data&&c.insights.data[0];if(!ins)return;
     const g=parseFloat(ins.spend||0);
-    const la=(ins.actions||[]).find(a=>a.action_type==='lead'||a.action_type==='onsite_conversion.messaging_conversation_started_7d');
-    const ml=parseInt(la&&la.value||0);
+    const leadTypes2=['lead','onsite_conversion.messaging_conversation_started_7d',
+      'onsite_conversion.lead_grouped','contact','onsite_conversion.total_messaging_connection'];
+    const ml=(ins.actions||[]).filter(a=>leadTypes2.includes(a.action_type)).reduce((s,a)=>s+parseInt(a.value||0),0);
     const cd=getCamp(c.name);
     cd.g=g;cd.ml=ml;
   });
@@ -749,8 +759,9 @@ function renderMeta(){
   document.getElementById('mTb').innerHTML=S.metaCampanas.map(c=>{
     const ins=c.insights&&c.insights.data&&c.insights.data[0];
     const g=parseFloat(ins&&ins.spend||0);
-    const la=(ins&&ins.actions||[]).find(a=>a.action_type==='lead'||a.action_type==='onsite_conversion.messaging_conversation_started_7d');
-    const l=parseInt(la&&la.value||0);
+    const leadTypes=['lead','onsite_conversion.messaging_conversation_started_7d',
+      'onsite_conversion.lead_grouped','contact','onsite_conversion.total_messaging_connection'];
+    const l=(ins&&ins.actions||[]).filter(a=>leadTypes.includes(a.action_type)).reduce((s,a)=>s+parseInt(a.value||0),0);
     const cpl=l>0?g/l:0;
     const est=c.status==='ACTIVE'?'<span style="font-family:\'Share Tech Mono\',monospace;font-size:8px;padding:2px 5px;background:var(--green-dim);color:var(--green)">ON</span>':'<span style="font-family:\'Share Tech Mono\',monospace;font-size:8px;padding:2px 5px;background:var(--border);color:var(--text3)">OFF</span>';
     return `<tr><td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.name}</td><td>${est}</td><td style="text-align:right;font-family:'Share Tech Mono',monospace">${fU(g)}</td><td style="text-align:right;font-family:'Share Tech Mono',monospace;color:var(--text2)">${fBsU(g)}</td><td style="text-align:right;color:var(--neon)">${l}</td><td style="text-align:right;font-family:'Share Tech Mono',monospace;color:${cpl<1?'var(--green)':cpl<2?'var(--yellow)':'var(--red)'}">${cpl>0?fU(cpl):'—'}</td></tr>`;
