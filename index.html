@@ -163,15 +163,15 @@ select.msel:focus{border-color:var(--neon)}
 
   <!-- EMBUDO OPERATIVO -->
   <div class="sec">EMBUDO OPERATIVO DEL MES</div>
-  <div class="g2">
-    <div class="panel">
-      <div class="ptitle">META → KOMMO → VISITA → PRESUPUESTO → VENTA → INSTALACIÓN</div>
-      <div id="fReal"></div>
-    </div>
-    <div class="panel">
-      <div class="ptitle">ACTIVIDAD POR ROL</div>
-      <div class="acg" id="acG"></div>
-    </div>
+  <!-- EMBUDO full width -->
+  <div class="panel" style="margin-bottom:11px">
+    <div class="ptitle">META → KOMMO → VISITA → PRESUPUESTO → VENTA → INSTALACIÓN</div>
+    <div id="fReal"></div>
+  </div>
+  <!-- ASESORES full width 4 columnas -->
+  <div class="panel" style="margin-bottom:12px">
+    <div class="ptitle">ACTIVIDAD POR ROL</div>
+    <div id="acG"></div>
   </div>
 
   <!-- VISITAS DETALLE -->
@@ -460,33 +460,52 @@ function miniBar(el,items,color,valFn){
   el.innerHTML=items.map(([l,n])=>`<div class="mr"><div class="ml" title="${l}">${l||'Sin dato'}</div><div class="mbw"><div class="mbf" style="width:${n/max*100}%;background:${color};opacity:.7"></div></div><div class="mv">${valFn?valFn(n):n}</div></div>`).join('');
 }
 function fRows(steps){
-  // Embudo visual tipo trapecio SVG
   const max=Math.max(...steps.map(s=>s.n),1);
-  const W=500,rowH=52,gap=3,padX=10;
-  const totalH=steps.length*(rowH+gap);
-  let svg=`<svg viewBox="0 0 ${W} ${totalH}" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:600px;display:block">`;
+  const colMap={
+    'purple':'#b388ff','neon':'#00e5ff','yellow':'#ffd600','neon2':'#00b8d4',
+    'text2':'#7a90aa','green':'#00e676','red':'#ff3d3d','orange':'#ff9800'
+  };
+  function hex(c){return colMap[c.replace('var(--','').replace(')','')]||'#00e5ff';}
+
+  // SVG full-width: embudo centrado con labels a izquierda y conversión a derecha
+  const W=900, rowH=58, gap=4, padX=20, labelW=130, convW=80;
+  const funnelW=W-labelW-convW-padX*2; // ancho disponible para el trapecio
+  const totalH=steps.length*(rowH+gap)+8;
+  let svg=`<svg viewBox="0 0 ${W} ${totalH}" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block">`;
+
   steps.forEach((s,i)=>{
     const pct=s.n/max;
-    const nextPct=i<steps.length-1?steps[i+1].n/max:pct*0.7;
-    const minW=60;
-    const wTop=minW+(W-minW-padX*2)*pct+padX;
-    const wBot=minW+(W-minW-padX*2)*nextPct+padX;
-    const xTop=(W-wTop)/2, xBot=(W-wBot)/2;
-    const y=i*(rowH+gap);
-    const conv=i>0&&steps[i-1].n>0?' →'+(s.n/steps[i-1].n*100).toFixed(0)+'%':'';
-    // Color con opacity
-    const col=s.c.replace('var(--','').replace(')','');
-    const colMap={'purple':'#b388ff','neon':'#00e5ff','yellow':'#ffd600','neon2':'#00b8d4','text2':'#7a90aa','green':'#00e676','red':'#ff3d3d','orange':'#ff9800'};
-    const hex=colMap[col]||'#00e5ff';
-    // Trapecio
-    svg+=`<polygon points="${xTop},${y} ${xTop+wTop},${y} ${xBot+wBot},${y+rowH} ${xBot},${y+rowH}" fill="${hex}" opacity="0.18"/>`;
-    svg+=`<polygon points="${xTop},${y} ${xTop+wTop},${y} ${xBot+wBot},${y+rowH} ${xBot},${y+rowH}" fill="none" stroke="${hex}" stroke-width="1" opacity="0.5"/>`;
-    // Label izq
-    svg+=`<text x="12" y="${y+rowH/2+4}" font-family="Share Tech Mono,monospace" font-size="9" fill="#7a90aa" letter-spacing="1">${s.l}</text>`;
-    // Número centro
-    svg+=`<text x="${W/2}" y="${y+rowH/2+6}" font-family="Oswald,sans-serif" font-size="20" font-weight="500" fill="${hex}" text-anchor="middle">${s.n.toLocaleString()}</text>`;
-    // Conversión der
-    if(conv) svg+=`<text x="${W-10}" y="${y+rowH/2+4}" font-family="Share Tech Mono,monospace" font-size="9" fill="${hex}" text-anchor="end" opacity="0.8">${conv}</text>`;
+    const nextPct=i<steps.length-1?steps[i+1].n/max:pct*0.75;
+    const minFrac=0.08; // mínimo 8% del ancho para que nunca desaparezca
+    const wTop=(minFrac+(1-minFrac)*pct)*funnelW;
+    const wBot=(minFrac+(1-minFrac)*nextPct)*funnelW;
+    const xBase=labelW+padX;
+    const xTop=xBase+(funnelW-wTop)/2;
+    const xBot=xBase+(funnelW-wBot)/2;
+    const y=i*(rowH+gap)+4;
+    const h=hex(s.c);
+    const conv=i>0&&steps[i-1].n>0?(s.n/steps[i-1].n*100).toFixed(0)+'%':'';
+
+    // Trapecio relleno
+    svg+=`<polygon points="${xTop},${y} ${xTop+wTop},${y} ${xBot+wBot},${y+rowH} ${xBot},${y+rowH}" fill="${h}" opacity="0.15"/>`;
+    // Borde superior destacado
+    svg+=`<line x1="${xTop}" y1="${y}" x2="${xTop+wTop}" y2="${y}" stroke="${h}" stroke-width="2" opacity="0.7"/>`;
+    // Bordes laterales suaves
+    svg+=`<line x1="${xTop}" y1="${y}" x2="${xBot}" y2="${y+rowH}" stroke="${h}" stroke-width="1" opacity="0.3"/>`;
+    svg+=`<line x1="${xTop+wTop}" y1="${y}" x2="${xBot+wBot}" y2="${y+rowH}" stroke="${h}" stroke-width="1" opacity="0.3"/>`;
+
+    // Label izquierda
+    svg+=`<text x="${labelW}" y="${y+rowH/2+5}" font-family="Share Tech Mono,monospace" font-size="11" fill="#7a90aa" text-anchor="end" letter-spacing="1">${s.l}</text>`;
+
+    // Número grande centrado
+    svg+=`<text x="${xBase+funnelW/2}" y="${y+rowH/2+9}" font-family="Oswald,sans-serif" font-size="26" font-weight="600" fill="${h}" text-anchor="middle">${s.n.toLocaleString()}</text>`;
+
+    // Conversión derecha con flecha
+    if(conv){
+      const cx=xBase+funnelW+padX+4;
+      const cy=y+rowH/2+5;
+      svg+=`<text x="${cx}" y="${cy}" font-family="Share Tech Mono,monospace" font-size="11" fill="${h}" opacity="0.9">→${conv}</text>`;
+    }
   });
   svg+='</svg>';
   return svg;
@@ -633,23 +652,36 @@ function renderAsesores(){
       <div class="acs">PENDIENTES <span style="color:var(--yellow)">${arr.filter(v=>v['Estado_Visita']==='Pendiente').length}</span></div>
     </div>`;
 
+  const sep=(txt)=>`<div style="font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--text3);letter-spacing:2px;padding:4px 0 6px;border-bottom:1px solid var(--border);margin-bottom:6px">${txt}</div>`;
   document.getElementById('acG').innerHTML=`
-    <div style="font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--text3);letter-spacing:2px;margin-bottom:5px;grid-column:1/-1">ATO — CIERRE Y COBRANZA</div>
-    ${atoCard('SAÚL','var(--neon)',
-      vis.filter(v=>esSaul(v['Asesor_Visita'])),
-      pres.filter(p=>esSaul(p['Asesor_Presupuesto'])),
-      vend.filter(p=>esSaul(p['Asesor_Presupuesto'])),
-      sena.filter(p=>esSaul(p['Asesor_Presupuesto']))
-    )}
-    ${atoCard('GABRIEL','var(--orange)',
-      vis.filter(v=>esGabriel(v['Asesor_Visita'])),
-      pres.filter(p=>esGabriel(p['Asesor_Presupuesto'])),
-      vend.filter(p=>esGabriel(p['Asesor_Presupuesto'])),
-      sena.filter(p=>esGabriel(p['Asesor_Presupuesto']))
-    )}
-    <div style="font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--text3);letter-spacing:2px;margin:8px 0 5px;grid-column:1/-1">VL — CAPTACIÓN Y AGENDA</div>
-    ${vlCard('XIOMARA','var(--purple)',xiom)}
-    ${vlCard('LUIS CARLOS','var(--neon2)',luisc)}`;
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:9px;align-items:start">
+      <div>
+        ${sep('ATO — CIERRE')}
+        ${atoCard('SAÚL','var(--neon)',
+          vis.filter(v=>esSaul(v['Asesor_Visita'])),
+          pres.filter(p=>esSaul(p['Asesor_Presupuesto'])),
+          vend.filter(p=>esSaul(p['Asesor_Presupuesto'])),
+          sena.filter(p=>esSaul(p['Asesor_Presupuesto']))
+        )}
+      </div>
+      <div>
+        ${sep('ATO — CIERRE')}
+        ${atoCard('GABRIEL','var(--orange)',
+          vis.filter(v=>esGabriel(v['Asesor_Visita'])),
+          pres.filter(p=>esGabriel(p['Asesor_Presupuesto'])),
+          vend.filter(p=>esGabriel(p['Asesor_Presupuesto'])),
+          sena.filter(p=>esGabriel(p['Asesor_Presupuesto']))
+        )}
+      </div>
+      <div>
+        ${sep('VL — AGENDA')}
+        ${vlCard('XIOMARA','var(--purple)',xiom)}
+      </div>
+      <div>
+        ${sep('VL — AGENDA')}
+        ${vlCard('LUIS CARLOS','var(--neon2)',luisc)}
+      </div>
+    </div>`;
 }
 
 function renderVisitas(){
