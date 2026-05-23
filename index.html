@@ -487,9 +487,19 @@ async function fetchMeta(){
     const{year,month}=getMesActual();
     const f=new Date(year,month,1),t=new Date(year,month+1,0);
     const df=f.toISOString().split('T')[0],dt=t.toISOString().split('T')[0];
-    const r=await fetch(`https://graph.facebook.com/v19.0/${CFG.META_ACCOUNT}/campaigns?fields=name,status,insights{spend,actions}&time_range={'since':'${df}','until':'${dt}'}&limit=50&access_token=${CFG.META_TOKEN}`);
-    const d=await r.json();return d&&d.data?d.data:[];
-  }catch(e){return[];}
+    // date_preset no sirve para histórico — usamos time_range con fechas exactas
+    // Esto funciona para cualquier mes pasado o presente
+    const params=new URLSearchParams({
+      fields:'name,status,insights{spend,actions,impressions,reach,cpm,cpc}',
+      time_range: JSON.stringify({since:df,until:dt}),
+      limit:'50',
+      access_token:CFG.META_TOKEN
+    });
+    const r=await fetch(`https://graph.facebook.com/v19.0/${CFG.META_ACCOUNT}/campaigns?`+params);
+    const d=await r.json();
+    if(d.error){console.warn('Meta API error:',d.error.message);return[];}
+    return d&&d.data?d.data:[];
+  }catch(e){console.warn('fetchMeta error:',e);return[];}
 }
 
 // ── RENDERS ───────────────────────────────────────────────────────────────────
@@ -542,6 +552,7 @@ function renderFunnel(){
   const visR=vis.filter(v=>v['Estado_Visita']==='Realizada').length;
   const pres=fPres();
   const vend=fVendidos();
+  const sena=fSenados();
   const inst=fInst();
   let mL=0;
   S.metaCampanas.forEach(c=>{
@@ -550,13 +561,14 @@ function renderFunnel(){
     if(la)mL+=parseInt(la.value||0);
   });
   document.getElementById('fReal').innerHTML=fRows([
-    {l:'LEADS META',    n:mL,           c:'var(--purple)'},
-    {l:'LEADS KOMMO',   n:leads.length,  c:'var(--neon)'},
-    {l:'VISITAS PPTO',  n:vis.length,    c:'var(--yellow)'},
-    {l:'REALIZADAS',    n:visR,          c:'var(--neon2)'},
-    {l:'PRESUPUESTOS',  n:pres.length,   c:'var(--orange)'},
-    {l:'VENTAS',        n:vend.length,   c:'var(--green)'},
-    {l:'INSTALACIONES', n:inst.length,   c:'var(--purple)'},
+    {l:'LEADS META',       n:mL,           c:'var(--purple)'},
+    {l:'LEADS KOMMO',      n:leads.length,  c:'var(--neon)'},
+    {l:'VISITAS PPTO',     n:vis.length,    c:'var(--yellow)'},
+    {l:'REALIZADAS',       n:visR,          c:'var(--neon2)'},
+    {l:'PRESUP. TOTALES',  n:pres.length,   c:'var(--text2)'},
+    {l:'VENDIDOS',         n:vend.length,   c:'var(--green)'},
+    {l:'SEÑADOS',          n:sena.length,   c:'var(--yellow)'},
+    {l:'INSTALACIONES',    n:inst.length,   c:'var(--purple)'},
   ]);
 }
 
