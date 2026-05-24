@@ -792,15 +792,22 @@ function renderCruce(){
 
 
   // Mapa ID_Prospecto → teléfono (desde PresupuestoProspecto)
-  // Teléfono ahora tiene alias sin tilde gracias a loadSheet
   const idTel={};
   S.presupuestos.forEach(p=>{
     const id=normID(p['ID_Prospecto']);
-    const telRaw=p['Telefono']||p['Teléfono']||''; // alias sin tilde + original
+    const telRaw=p['Telefono']||p['Teléfono']||'';
     const tel=normTel(telRaw);
     if(id&&tel)idTel[id]=tel;
   });
-  console.log('idTel:',Object.keys(idTel).length,'| sample:',Object.entries(idTel).slice(0,2));
+  // Mostrar los primeros 3 presupuestos CON teléfono
+  const presConTel=S.presupuestos.filter(p=>p['Telefono']||p['Teléfono']).slice(0,3);
+  presConTel.forEach((p,i)=>{
+    const tel=p['Telefono']||p['Teléfono'];
+    console.log('Presup con tel['+i+']:',{id:normID(p['ID_Prospecto']),telRaw:tel,telNorm:normTel(tel)});
+  });
+  // Mostrar primeros 3 de telCamp para comparar
+  Object.entries(telCamp).slice(0,3).forEach(([t,c])=>console.log('telCamp entry:',{tel:t,camp:c}));
+  console.log('idTel size:',Object.keys(idTel).length);
 
   // Mapa ID_Prospecto → campaña
   const idCamp={};
