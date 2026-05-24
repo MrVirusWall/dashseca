@@ -794,8 +794,23 @@ function renderCruce(){
 
   const idsCruzados=Object.keys(idCamp).length;
   console.log('IDs cruzados (ID_Prospecto con campaña):',idsCruzados);
-  // Muestra algunos ejemplos
-  Object.entries(idCamp).slice(0,3).forEach(([id,c])=>console.log('  ID_Prospecto',id,'→',c));
+
+  // DEBUG PROFUNDO — comparar los primeros tels de cada lado
+  const telCampKeys=Object.keys(telCamp).slice(0,5);
+  const idTelVals=Object.values(idTel).slice(0,5);
+  console.log('Sample tels en telCamp (de Kommo):', telCampKeys);
+  console.log('Sample tels en idTel (de Presup):', idTelVals);
+  // Buscar si alguno matchea manualmente
+  let found=0;
+  Object.values(idTel).forEach(t=>{if(telCamp[t])found++;});
+  console.log('Matches manuales encontrados:',found);
+  // Mostrar raw antes de normTel
+  const rawKommo=S.kommoLeads.slice(0,3).map(l=>l['Telefono']);
+  const rawPres=S.presupuestos.filter(p=>p['Teléfono']||p['Telefono']).slice(0,3).map(p=>p['Teléfono']||p['Telefono']);
+  console.log('Raw tels Kommo:',rawKommo);
+  console.log('Raw tels Presup:',rawPres);
+  console.log('normTel Kommo[0]:',normTel(rawKommo[0]));
+  console.log('normTel Presup[0]:',normTel(rawPres[0]));
 
   // Acumular datos por campaña
   const campData={};
