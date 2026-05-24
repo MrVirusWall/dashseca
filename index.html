@@ -792,29 +792,24 @@ function renderCruce(){
 
 
   // Mapa ID_Prospecto → teléfono (desde PresupuestoProspecto)
-  const idTel={};
-  S.presupuestos.forEach(p=>{
-    const id=normID(p['ID_Prospecto']);
-    const telRaw=p['Telefono']||p['Teléfono']||'';
-    const tel=normTel(telRaw);
-    if(id&&tel)idTel[id]=tel;
-  });
-  // Mostrar los primeros 3 presupuestos CON teléfono
-  const presConTel=S.presupuestos.filter(p=>p['Telefono']||p['Teléfono']).slice(0,3);
-  presConTel.forEach((p,i)=>{
-    const tel=p['Telefono']||p['Teléfono'];
-    console.log('Presup con tel['+i+']:',{id:normID(p['ID_Prospecto']),telRaw:tel,telNorm:normTel(tel)});
-  });
-  // Mostrar primeros 3 de telCamp para comparar
-  Object.entries(telCamp).slice(0,3).forEach(([t,c])=>console.log('telCamp entry:',{tel:t,camp:c}));
-  console.log('idTel size:',Object.keys(idTel).length);
-
-  // Mapa ID_Prospecto → campaña
+  // Cruce directo: presupuesto tiene tel → campaña via telCamp
+  // También construir idCamp para visitas (por ID_Prospecto)
   const idCamp={};
-  Object.entries(idTel).forEach(([id,tel])=>{
+  S.presupuestos.forEach(p=>{
+    const tel=normTel(p['Telefono']||p['Teléfono']||'');
+    if(!tel)return;
     const camp=telCamp[tel];
-    if(camp)idCamp[id]=camp;
+    if(!camp)return;
+    // Guardar por ID_Prospecto si existe
+    const id=normID(p['ID_Prospecto']);
+    if(id)idCamp[id]=camp;
+    // También guardar por ID_Presupuesto como fallback
+    const idPres=normID(p['ID_Presupuesto']);
+    if(idPres)idCamp['pres_'+idPres]=camp;
+    // Y guardar el tel directamente para cruce directo
+    idCamp['tel_'+tel]=camp;
   });
+  console.log('idCamp size:',Object.keys(idCamp).length);
 
   const idsCruzados=Object.keys(idCamp).length;
   console.log('IDs cruzados:',idsCruzados);
@@ -853,19 +848,22 @@ function renderCruce(){
     }
   });
 
-  // Presupuestos del mes
+  // Presupuestos del mes — cruce directo por tel, luego por ID_Prospecto
   S.presupuestos.filter(p=>inMes(p['Fecha_Presupuesto']||p['FechaCreacion_Presupuesto'])).forEach(p=>{
+    const tel=normTel(p['Telefono']||p['Teléfono']||'');
     const id=normID(p['ID_Prospecto']);
-    const camp=idCamp[id];
+    const idPres=normID(p['ID_Presupuesto']);
+    const camp=telCamp[tel]||idCamp[id]||idCamp['pres_'+idPres];
     if(!camp)return;
-    const cd=getCamp(camp);
-    cd.pres++;
+    getCamp(camp).pres++;
   });
 
-  // Ventas: usar fVendidos() que ya tiene fecha correcta + filtro asesor
+  // Ventas — cruce directo por tel
   fVendidos().forEach(p=>{
+    const tel=normTel(p['Telefono']||p['Teléfono']||'');
     const id=normID(p['ID_Prospecto']);
-    const camp=idCamp[id];
+    const idPres=normID(p['ID_Presupuesto']);
+    const camp=telCamp[tel]||idCamp[id]||idCamp['pres_'+idPres];
     if(!camp)return;
     getCamp(camp).ventas++;
   });
