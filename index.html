@@ -575,13 +575,7 @@ async function fetchMeta(){
     if(d.error){console.warn('Meta API error:',d.error.message);return[];}
     const camps=d&&d.data?d.data:[];
     // Log action types para debug
-    camps.forEach(c=>{
-      const ins=c.insights&&c.insights.data&&c.insights.data[0];
-      if(ins&&ins.actions){
-        const types=ins.actions.map(a=>a.action_type+'='+a.value).join(', ');
-        console.log('Campaña "'+c.name+'" actions:',types,'spend:'+ins.spend);
-      }
-    });
+
     return camps;
   }catch(e){console.warn('fetchMeta error:',e);return[];}
 }
@@ -809,10 +803,7 @@ function renderCruce(){
     // Y guardar el tel directamente para cruce directo
     idCamp['tel_'+tel]=camp;
   });
-  console.log('idCamp size:',Object.keys(idCamp).length);
 
-  const idsCruzados=Object.keys(idCamp).length;
-  console.log('IDs cruzados:',idsCruzados);
 
   // Acumular datos por campaña
   const campData={};
@@ -974,7 +965,6 @@ async function loadSheet(names, sinceYear=0){
         });
         return o;
       });
-      console.log('Pestaña "'+name+'" — '+rows.length+' filas brutas. Cols:',cols.slice(0,5));
       if(sinceYear>0){
         // Detectar columna de fecha automáticamente
         const dateCols=['FechaHora_Visita','Fecha_Presupuesto','FechaCreacion_Presupuesto','Fecha_Pago','Fecha_Creacion','Fecha_Modificacion'];
@@ -984,7 +974,6 @@ async function loadSheet(names, sinceYear=0){
             const d=parseDate(row[dcol]);
             return d&&d.getFullYear()>=sinceYear;
           });
-          console.log('Después de filtro >='+sinceYear+':',rows.length,'filas. dcol='+dcol);
         }
       }
       if(rows.length>0)return rows;
@@ -1012,10 +1001,7 @@ async function init(){
     S.visitas=noEmpty(v);
     S.presupuestos=noEmpty(p);
     S.kommoLeads=noEmpty(k);
-    console.log('Después de noEmpty — Vis:'+S.visitas.length+' Pres:'+S.presupuestos.length);
     // Log columnas para verificar
-    if(S.visitas.length>0) console.log('Cols visitas:',Object.keys(S.visitas[0]));
-    if(S.presupuestos.length>0) console.log('Cols presup:',Object.keys(S.presupuestos[0]));
     S.kommoLeads.forEach(l=>{if(l['Campaña_Meta']&&!l['Campana_Meta'])l['Campana_Meta']=l['Campaña_Meta'];});
     setLoad(70,`Cobros:${S.cobranzas.length} Vis:${S.visitas.length} Pres:${S.presupuestos.length} Kommo:${S.kommoLeads.length} — META...`);
     buildMesSelector();
