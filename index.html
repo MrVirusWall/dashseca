@@ -759,41 +759,43 @@ function renderVisitas(){
 }
 
 function renderCruce(){
-  const leads=fLeads();
+  const leadsmes=fLeads();
   const{year,month}=getMesActual();
 
-  // Mapa teléfono normalizado → campaña (desde Kommo)
+  // Mapa teléfono → campaña usando TODOS los leads de Kommo (no solo del mes)
+  // Para poder atribuir visitas/presupuestos aunque el lead sea de otro mes
   const telCamp={};
-  leads.forEach(l=>{
+  S.kommoLeads.forEach(l=>{
     const tel=normTel(l['Telefono']);
-    const camp=l['Campana_Meta']?String(l['Campana_Meta']).trim():'';
+    const camp=l['Campana_Meta']?String(l['Campana_Meta']).trim()
+               :l['Campaña_Meta']?String(l['Campaña_Meta']).trim():'';
     if(tel&&camp)telCamp[tel]=camp;
   });
 
-  // Mapa ID_Prospecto → teléfono normalizado (desde PresupuestoProspecto — tiene el tel)
-  // También mapeamos ID_Lead (Kommo) como ID_Prospecto directo si coinciden
+  // Debug en consola
+  const telsConCamp=Object.keys(telCamp).length;
+  const telsEnPres=S.presupuestos.filter(p=>normTel(p['Teléfono']||p['Telefono']||'')).length;
+  console.log('telCamp size:',telsConCamp,'| Presup con tel:',telsEnPres);
+
+  // Mapa ID_Prospecto → teléfono (desde PresupuestoProspecto)
   const idTel={};
   S.presupuestos.forEach(p=>{
     const id=String(p['ID_Prospecto']||'').trim();
     const tel=normTel(p['Teléfono']||p['Telefono']||'');
     if(id&&tel)idTel[id]=tel;
   });
-  // También cruzar Visitas por ID_Prospecto usando el tel del presupuesto asociado
-  S.visitas.forEach(v=>{
-    const id=String(v['ID_Prospecto']||'').trim();
-    if(id&&!idTel[id]){
-      // Buscar el presupuesto con mismo ID_Prospecto para obtener teléfono
-      const pMatch=S.presupuestos.find(p=>String(p['ID_Prospecto']||'').trim()===id);
-      if(pMatch){const tel=normTel(pMatch['Teléfono']||pMatch['Telefono']||'');if(tel)idTel[id]=tel;}
-    }
-  });
 
-  // Mapa ID_Prospecto → campaña (cruzando por teléfono)
+  // Mapa ID_Prospecto → campaña
   const idCamp={};
   Object.entries(idTel).forEach(([id,tel])=>{
     const camp=telCamp[tel];
     if(camp)idCamp[id]=camp;
   });
+
+  const idsCruzados=Object.keys(idCamp).length;
+  console.log('IDs cruzados (ID_Prospecto con campaña):',idsCruzados);
+  // Muestra algunos ejemplos
+  Object.entries(idCamp).slice(0,3).forEach(([id,c])=>console.log('  ID_Prospecto',id,'→',c));
 
   // Acumular datos por campaña
   const campData={};
@@ -802,9 +804,10 @@ function renderCruce(){
     return campData[name];
   };
 
-  // Leads Kommo
-  leads.forEach(l=>{
-    const camp=l['Campana_Meta']?String(l['Campana_Meta']).trim():'Sin campaña';
+  // Leads Kommo del mes seleccionado
+  leadsmes.forEach(l=>{
+    const camp=l['Campana_Meta']?String(l['Campana_Meta']).trim()
+              :l['Campaña_Meta']?String(l['Campaña_Meta']).trim():'Sin campaña';
     getCamp(camp).kl++;
   });
 
