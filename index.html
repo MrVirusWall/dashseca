@@ -778,7 +778,7 @@ function renderCruce(){
   const kommoCampCol=S.kommoLeads.length>0
     ?Object.keys(S.kommoLeads[0]).find(k=>k.replace(/[^a-zA-Z_]/g,'').toLowerCase().includes('campana')||k.includes('Campaña')||k.includes('Campana'))
     :'Campana_Meta';
-  console.log('Kommo cols detectadas — tel:',kommoTelCol,'camp:',kommoCampCol);
+
   const telCamp={};
   S.kommoLeads.forEach(l=>{
     const tel=normTel(kommoTelCol?l[kommoTelCol]:'');
@@ -786,46 +786,21 @@ function renderCruce(){
     const camp=campRaw?String(campRaw).trim():'';
     if(tel&&camp)telCamp[tel]=camp;
   });
-  console.log('telCamp size:',Object.keys(telCamp).length,'| sample:',Object.entries(telCamp).slice(0,3));
+
 
   // Debug en consola
-  const telsConCamp=Object.keys(telCamp).length;
-  const telsEnPres=S.presupuestos.filter(p=>normTel(p['Teléfono']||p['Telefono']||'')).length;
-  console.log('telCamp size:',telsConCamp,'| Presup con tel:',telsEnPres);
+
 
   // Mapa ID_Prospecto → teléfono (desde PresupuestoProspecto)
-  // Leer teléfono por posición — la é de Teléfono tiene encoding variable en gviz
-  // La última columna de PresupuestoProspecto es siempre Teléfono
-  const presKeys=S.presupuestos.length>0?Object.keys(S.presupuestos[0]):[];
-  // Buscar por posición: última columna
-  const telColIdx=presKeys.length-1;
-  const telColKey=presKeys[telColIdx];
-  console.log('telColKey por posición:',telColKey,'(idx '+telColIdx+')');
-  // Verificar: también buscar por código unicode directo
-  const telColByCode=presKeys.find(k=>{
-    const codes=[...k].map(c=>c.codePointAt(0));
-    return codes.some(c=>(c===84||c===116))&&codes.some(c=>(c===101||c===233||c===65e9));
-  });
-  console.log('telColByCode:',telColByCode);
+  // Teléfono ahora tiene alias sin tilde gracias a loadSheet
   const idTel={};
   S.presupuestos.forEach(p=>{
     const id=normID(p['ID_Prospecto']);
-    // Leer por posición directamente desde Object.values()
-    const vals=Object.values(p);
-    const telRaw=vals[telColIdx]||'';
+    const telRaw=p['Telefono']||p['Teléfono']||''; // alias sin tilde + original
     const tel=normTel(telRaw);
     if(id&&tel)idTel[id]=tel;
   });
-  console.log('idTel size:',Object.keys(idTel).length);
-  if(Object.keys(idTel).length>0)console.log('idTel sample:',Object.entries(idTel).slice(0,3));
-  else{
-    // Debug extra: mostrar los últimos 3 valores de la primera fila
-    if(S.presupuestos.length>0){
-      const v=Object.values(S.presupuestos[0]);
-      console.log('Últimos 5 valores de presup[0]:',v.slice(-5));
-      console.log('Keys completos:',presKeys.slice(-5).map(k=>[...k].map(c=>c.codePointAt(0))));
-    }
-  }
+  console.log('idTel:',Object.keys(idTel).length,'| sample:',Object.entries(idTel).slice(0,2));
 
   // Mapa ID_Prospecto → campaña
   const idCamp={};
@@ -835,13 +810,7 @@ function renderCruce(){
   });
 
   const idsCruzados=Object.keys(idCamp).length;
-  // Debug compacto
-  const telCampSample=Object.keys(telCamp).slice(0,3);
-  const idTelSample=Object.entries(idTel).slice(0,3);
-  const rawKommo=S.kommoLeads.slice(0,2).map(l=>({raw:l['Telefono'],norm:normTel(l['Telefono'])}));
-  const rawPres=S.presupuestos.filter(p=>p['Teléfono']||p['Telefono']).slice(0,2).map(p=>({raw:p['Teléfono']||p['Telefono'],norm:normTel(p['Teléfono']||p['Telefono']),id:normID(p['ID_Prospecto'])}));
-  console.log('IDs cruzados:',idsCruzados,'| telCamp sample:',telCampSample,'| idTel sample:',idTelSample);
-  console.log('Kommo tels:',rawKommo,'| Presup tels:',rawPres);
+  console.log('IDs cruzados:',idsCruzados);
 
   // Acumular datos por campaña
   const campData={};
@@ -989,9 +958,15 @@ async function loadSheet(names, sinceYear=0){
       if(!m){console.warn('Sin match gviz para:',name);continue;}
       const json=JSON.parse(m[1]);
       const cols=json.table.cols.map(c=>c.label);
+      // Crear alias normalizados para cada columna (sin tildes ni caracteres especiales)
+      const colAliases=cols.map(c=>c.normalize('NFD').replace(/[\u0300-\u036f]/g,''));
       let rows=(json.table.rows||[]).map(row=>{
         const o={};
-        row.c.forEach((c,i)=>{o[cols[i]]=c?c.v:'';});
+        row.c.forEach((c,i)=>{
+          const val=c?c.v:'';
+          o[cols[i]]=val;           // key original
+          if(colAliases[i]!==cols[i]) o[colAliases[i]]=val; // key sin tildes
+        });
         return o;
       });
       console.log('Pestaña "'+name+'" — '+rows.length+' filas brutas. Cols:',cols.slice(0,5));
