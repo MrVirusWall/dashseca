@@ -794,31 +794,38 @@ function renderCruce(){
   console.log('telCamp size:',telsConCamp,'| Presup con tel:',telsEnPres);
 
   // Mapa ID_Prospecto → teléfono (desde PresupuestoProspecto)
-  // Leer teléfono de presupuestos usando búsqueda robusta de columna
-  // Normaliza el nombre de columna eliminando diacríticos y caracteres especiales
-  function normColName(s){return s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z]/g,'');}
-  const telCol=S.presupuestos.length>0
-    ?Object.keys(S.presupuestos[0]).find(k=>normColName(k).includes('telefono'))
-    :null;
-  // Fallback: leer última columna (Teléfono es siempre la última en PresupuestoProspecto)
-  const lastCol=S.presupuestos.length>0?Object.keys(S.presupuestos[0]).slice(-1)[0]:null;
-  console.log('telCol detectado:',telCol,'| lastCol:',lastCol);
+  // Leer teléfono por posición — la é de Teléfono tiene encoding variable en gviz
+  // La última columna de PresupuestoProspecto es siempre Teléfono
+  const presKeys=S.presupuestos.length>0?Object.keys(S.presupuestos[0]):[];
+  // Buscar por posición: última columna
+  const telColIdx=presKeys.length-1;
+  const telColKey=presKeys[telColIdx];
+  console.log('telColKey por posición:',telColKey,'(idx '+telColIdx+')');
+  // Verificar: también buscar por código unicode directo
+  const telColByCode=presKeys.find(k=>{
+    const codes=[...k].map(c=>c.codePointAt(0));
+    return codes.some(c=>(c===84||c===116))&&codes.some(c=>(c===101||c===233||c===65e9));
+  });
+  console.log('telColByCode:',telColByCode);
   const idTel={};
   S.presupuestos.forEach(p=>{
     const id=normID(p['ID_Prospecto']);
-    // Intentar telCol, luego lastCol, luego buscar manualmente
-    let telRaw=telCol?p[telCol]:'';
-    if(!telRaw&&lastCol)telRaw=p[lastCol];
-    if(!telRaw){
-      // Búsqueda manual por todos los keys
-      const tk=Object.keys(p).find(k=>normColName(k).includes('telefono'));
-      if(tk)telRaw=p[tk];
-    }
+    // Leer por posición directamente desde Object.values()
+    const vals=Object.values(p);
+    const telRaw=vals[telColIdx]||'';
     const tel=normTel(telRaw);
     if(id&&tel)idTel[id]=tel;
   });
   console.log('idTel size:',Object.keys(idTel).length);
   if(Object.keys(idTel).length>0)console.log('idTel sample:',Object.entries(idTel).slice(0,3));
+  else{
+    // Debug extra: mostrar los últimos 3 valores de la primera fila
+    if(S.presupuestos.length>0){
+      const v=Object.values(S.presupuestos[0]);
+      console.log('Últimos 5 valores de presup[0]:',v.slice(-5));
+      console.log('Keys completos:',presKeys.slice(-5).map(k=>[...k].map(c=>c.codePointAt(0))));
+    }
+  }
 
   // Mapa ID_Prospecto → campaña
   const idCamp={};
