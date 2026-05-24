@@ -303,6 +303,13 @@ function normTel(v){
   if(!v)return '';
   return String(v).replace(/\D/g,'').slice(-8);
 }
+// Normalizar ID — convierte "3.0" → "3", "123" → "123"
+function normID(v){
+  if(v===null||v===undefined||v==='')return '';
+  const n=Number(v);
+  if(!isNaN(n)&&n===Math.floor(n))return String(Math.floor(n));
+  return String(v).trim();
+}
 
 // ── ESTADO GLOBAL ─────────────────────────────────────────────────────────────
 let TC=6.86;
@@ -780,7 +787,7 @@ function renderCruce(){
   // Mapa ID_Prospecto → teléfono (desde PresupuestoProspecto)
   const idTel={};
   S.presupuestos.forEach(p=>{
-    const id=String(p['ID_Prospecto']||'').trim();
+    const id=normID(p['ID_Prospecto']);
     const tel=normTel(p['Teléfono']||p['Telefono']||'');
     if(id&&tel)idTel[id]=tel;
   });
@@ -793,24 +800,13 @@ function renderCruce(){
   });
 
   const idsCruzados=Object.keys(idCamp).length;
-  console.log('IDs cruzados (ID_Prospecto con campaña):',idsCruzados);
-
-  // DEBUG PROFUNDO — comparar los primeros tels de cada lado
-  const telCampKeys=Object.keys(telCamp).slice(0,5);
-  const idTelVals=Object.values(idTel).slice(0,5);
-  console.log('Sample tels en telCamp (de Kommo):', telCampKeys);
-  console.log('Sample tels en idTel (de Presup):', idTelVals);
-  // Buscar si alguno matchea manualmente
-  let found=0;
-  Object.values(idTel).forEach(t=>{if(telCamp[t])found++;});
-  console.log('Matches manuales encontrados:',found);
-  // Mostrar raw antes de normTel
-  const rawKommo=S.kommoLeads.slice(0,3).map(l=>l['Telefono']);
-  const rawPres=S.presupuestos.filter(p=>p['Teléfono']||p['Telefono']).slice(0,3).map(p=>p['Teléfono']||p['Telefono']);
-  console.log('Raw tels Kommo:',rawKommo);
-  console.log('Raw tels Presup:',rawPres);
-  console.log('normTel Kommo[0]:',normTel(rawKommo[0]));
-  console.log('normTel Presup[0]:',normTel(rawPres[0]));
+  // Debug compacto
+  const telCampSample=Object.keys(telCamp).slice(0,3);
+  const idTelSample=Object.entries(idTel).slice(0,3);
+  const rawKommo=S.kommoLeads.slice(0,2).map(l=>({raw:l['Telefono'],norm:normTel(l['Telefono'])}));
+  const rawPres=S.presupuestos.filter(p=>p['Teléfono']||p['Telefono']).slice(0,2).map(p=>({raw:p['Teléfono']||p['Telefono'],norm:normTel(p['Teléfono']||p['Telefono']),id:normID(p['ID_Prospecto'])}));
+  console.log('IDs cruzados:',idsCruzados,'| telCamp sample:',telCampSample,'| idTel sample:',idTelSample);
+  console.log('Kommo tels:',rawKommo,'| Presup tels:',rawPres);
 
   // Acumular datos por campaña
   const campData={};
@@ -835,7 +831,7 @@ function renderCruce(){
     return true;
   });
   visParaCruce.forEach(v=>{
-    const id=String(v['ID_Prospecto']||'').trim();
+    const id=normID(v['ID_Prospecto']);
     const camp=idCamp[id];
     if(!camp)return;
     const cd=getCamp(camp);
@@ -848,7 +844,7 @@ function renderCruce(){
 
   // Presupuestos del mes
   S.presupuestos.filter(p=>inMes(p['Fecha_Presupuesto']||p['FechaCreacion_Presupuesto'])).forEach(p=>{
-    const id=String(p['ID_Prospecto']||'').trim();
+    const id=normID(p['ID_Prospecto']);
     const camp=idCamp[id];
     if(!camp)return;
     const cd=getCamp(camp);
@@ -857,7 +853,7 @@ function renderCruce(){
 
   // Ventas: usar fVendidos() que ya tiene fecha correcta + filtro asesor
   fVendidos().forEach(p=>{
-    const id=String(p['ID_Prospecto']||'').trim();
+    const id=normID(p['ID_Prospecto']);
     const camp=idCamp[id];
     if(!camp)return;
     getCamp(camp).ventas++;
