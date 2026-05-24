@@ -667,16 +667,30 @@ function renderAsesores(){
       <div style="font-family:'Oswald',sans-serif;font-size:22px;font-weight:500;color:${color};line-height:1">${val}</div>
     </div>`;
 
-  const atoCard=(nombre,color,visArr,presArr,vendArr,senaArr)=>`
-    <div class="acc" style="text-align:center;padding:14px 10px">
-      <div style="font-family:'Oswald',sans-serif;font-size:14px;letter-spacing:3px;color:${color};margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)">${nombre}</div>
+  const atoCard=(nombre,color,visArr,presArr,vendArr,senaArr)=>{
+    // Calcular montos vendido y señado de este asesor específico
+    const totVnd=vendArr.reduce((s,r)=>s+(+r['Total_Presupuesto']||+r['SubTotal_Presupuesto']||0),0);
+    const totSen=senaArr.reduce((s,r)=>s+(+r['Total_Presupuesto']||+r['SubTotal_Presupuesto']||0),0);
+    return `<div class="acc" style="text-align:center;padding:14px 10px">
+      <div style="font-family:'Oswald',sans-serif;font-size:14px;letter-spacing:3px;color:${color};margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border)">${nombre}</div>
+      <!-- Monto vendido destacado -->
+      <div style="background:rgba(0,230,118,0.06);border:1px solid rgba(0,230,118,0.2);padding:7px 6px;margin-bottom:8px">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--text3);letter-spacing:1px;margin-bottom:3px">VENDIDO EN MES</div>
+        <div style="font-family:'Oswald',sans-serif;font-size:19px;font-weight:600;color:var(--green);line-height:1">${fBs(totVnd)}</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text2);margin-top:2px">${vendArr.length} ventas · ${fU(totVnd/TC)} USD</div>
+      </div>
+      ${totSen>0?`<div style="background:rgba(255,214,0,0.05);border:1px solid rgba(255,214,0,0.2);padding:5px 6px;margin-bottom:8px">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--text3);letter-spacing:1px;margin-bottom:2px">SEÑADO</div>
+        <div style="font-family:'Oswald',sans-serif;font-size:15px;font-weight:500;color:var(--yellow);line-height:1">${fBs(totSen)}</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text2);margin-top:1px">${senaArr.length} señados</div>
+      </div>`:''}
+      <!-- Stats en grid -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
         ${statRow('VISITAS REAL.',visArr.filter(v=>v['Estado_Visita']==='Realizada').length,'var(--neon2)')}
         ${statRow('PRESUPUESTOS',presArr.length,'var(--orange)')}
-        ${statRow('SEÑADOS',senaArr.length,'var(--yellow)')}
-        ${statRow('VENTAS',vendArr.length,'var(--green)')}
       </div>
     </div>`;
+  };
 
   const vlCard=(nombre,color,arr)=>`
     <div class="acc" style="text-align:center;padding:14px 10px">
