@@ -176,7 +176,7 @@ select.msel:focus{border-color:var(--neon)}
       <div class="kpi-s">en período</div>
     </div>
     <div class="kpi" style="--ac:var(--orange)">
-      <div class="kpi-l">VISITAS PPTO</div>
+      <div class="kpi-l">VISITAS REALIZADAS</div>
       <div class="kpi-v" id="kV">-</div>
       <div class="kpi-s" id="kVS">-</div>
     </div>
@@ -439,7 +439,7 @@ function updateMesLabel(){
 // ── FILTROS ───────────────────────────────────────────────────────────────────
 const fCobs=()=>S.cobranzas.filter(r=>inMes(r['Fecha_Pago']));
 // Visitas de tipo Presupuesto (Asesor_Visita = ATO)
-// fVis: solo visitas de tipo Presupuesto (no instalación, no cobranza)
+// fVis: visitas de tipo Presupuesto del mes (todas — para detalles de VL)
 const fVis=()=>S.visitas.filter(r=>{
   if(!inMes(r['FechaHora_Visita']))return false;
   const mot=String(r['Motivo_Visita']||'').toLowerCase();
@@ -448,6 +448,8 @@ const fVis=()=>S.visitas.filter(r=>{
   if(S.asesor==='gabriel')return esGabriel(r['Asesor_Visita']);
   return true;
 });
+// fVisReal: solo las REALIZADAS — para embudo y KPI principal
+const fVisReal=()=>fVis().filter(r=>r['Estado_Visita']==='Realizada');
 // Visitas de instalación (campo Instalador lleno, Asesor_Visita vacío)
 const fInst=()=>S.visitas.filter(r=>{
   if(!inMes(r['FechaHora_Visita']))return false;
@@ -605,10 +607,11 @@ function renderKPIs(){
   // LEADS Y VISITAS
   document.getElementById('kL').textContent=fLeads().length;
   const vis=fVis();
-  document.getElementById('kV').textContent=vis.length;
+  const visReal=fVisReal();
+  document.getElementById('kV').textContent=visReal.length;
   document.getElementById('kVS').textContent=
-    vis.filter(v=>v['Estado_Visita']==='Realizada').length+' realizadas / '+
-    vis.filter(v=>v['Estado_Visita']==='Pendiente').length+' pendientes';
+    vis.length+' agendadas / '+
+    vis.filter(v=>v['Estado_Visita']==='Cancelada').length+' canceladas';
 }
 
 function renderMetaKPI(){
@@ -626,8 +629,8 @@ function renderMetaKPI(){
 
 function renderFunnel(){
   const leads=fLeads();
-  const vis=fVis();
-  const visR=vis.filter(v=>v['Estado_Visita']==='Realizada').length;
+  const vis=fVis();         // todas las agendadas (para contexto)
+  const visReal=fVisReal(); // solo realizadas — para el embudo
   const pres=fPres();
   const vend=fVendidos();
   const sena=fSenados();
@@ -641,14 +644,13 @@ function renderFunnel(){
     (ins.actions||[]).forEach(a=>{if(leadTypes.includes(a.action_type))mL+=parseInt(a.value||0);});
   });
   document.getElementById('fReal').innerHTML=fRows([
-    {l:'LEADS META',       n:mL,           c:'var(--purple)'},
-    {l:'LEADS KOMMO',      n:leads.length,  c:'var(--neon)'},
-    {l:'VISITAS PPTO',     n:vis.length,    c:'var(--yellow)'},
-    {l:'REALIZADAS',       n:visR,          c:'var(--neon2)'},
-    {l:'PRESUP. TOTALES',  n:pres.length,   c:'var(--text2)'},
-    {l:'VENDIDOS',         n:vend.length,   c:'var(--green)'},
-    {l:'SEÑADOS',          n:sena.length,   c:'var(--yellow)'},
-    {l:'INSTALACIONES',    n:inst.length,   c:'var(--purple)'},
+    {l:'LEADS META',       n:mL,              c:'var(--purple)'},
+    {l:'LEADS KOMMO',      n:leads.length,    c:'var(--neon)'},
+    {l:'VISITAS REALIZADAS',n:visReal.length, c:'var(--yellow)'},
+    {l:'PRESUPUESTOS',     n:pres.length,     c:'var(--orange)'},
+    {l:'VENDIDOS',         n:vend.length,     c:'var(--green)'},
+    {l:'SEÑADOS',          n:sena.length,     c:'var(--yellow)'},
+    {l:'INSTALACIONES',    n:inst.length,     c:'var(--purple)'},
   ]);
 }
 
@@ -669,9 +671,10 @@ function renderAsesores(){
     </div>`;
 
   const atoCard=(nombre,color,visArr,presArr,vendArr,senaArr)=>{
-    // Calcular montos vendido y señado de este asesor específico
     const totVnd=vendArr.reduce((s,r)=>s+(+r['Total_Presupuesto']||+r['SubTotal_Presupuesto']||0),0);
     const totSen=senaArr.reduce((s,r)=>s+(+r['Total_Presupuesto']||+r['SubTotal_Presupuesto']||0),0);
+    // m2 cotizados solo de vendidos
+    const totM2=vendArr.reduce((s,r)=>s+(+r['CantidadCotizada_Presupuesto']||0),0);
     return `<div class="acc" style="text-align:center;padding:14px 10px">
       <div style="font-family:'Oswald',sans-serif;font-size:14px;letter-spacing:3px;color:${color};margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border)">${nombre}</div>
       <!-- Monto vendido destacado -->
@@ -687,9 +690,13 @@ function renderAsesores(){
       </div>`:''}
       <!-- Stats en grid -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-        ${statRow('VISITAS REAL.',visArr.filter(v=>v['Estado_Visita']==='Realizada').length,'var(--neon2)')}
+        ${statRow('VISITAS REAL.',visArr.length,'var(--neon2)')}
         ${statRow('PRESUPUESTOS',presArr.length,'var(--orange)')}
       </div>
+      ${totM2>0?`<div style="margin-top:8px;padding:5px 6px;background:rgba(0,229,255,0.04);border:1px solid rgba(0,229,255,0.15)">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--text3);letter-spacing:1px;margin-bottom:2px">M² COTIZADOS (VENDIDOS)</div>
+        <div style="font-family:'Oswald',sans-serif;font-size:17px;font-weight:500;color:var(--neon);line-height:1">${totM2.toFixed(1)} m²</div>
+      </div>`:''}
     </div>`;
   };
 
@@ -710,7 +717,7 @@ function renderAsesores(){
       <div>
         ${sep('ATO — CIERRE')}
         ${atoCard('SAÚL','var(--neon)',
-          vis.filter(v=>esSaul(v['Asesor_Visita'])),
+          fVisReal().filter(v=>esSaul(v['Asesor_Visita'])),
           pres.filter(p=>esSaul(p['Asesor_Presupuesto'])),
           vend.filter(p=>esSaul(p['Asesor_Presupuesto'])),
           sena.filter(p=>esSaul(p['Asesor_Presupuesto']))
@@ -719,7 +726,7 @@ function renderAsesores(){
       <div>
         ${sep('ATO — CIERRE')}
         ${atoCard('GABRIEL','var(--orange)',
-          vis.filter(v=>esGabriel(v['Asesor_Visita'])),
+          fVisReal().filter(v=>esGabriel(v['Asesor_Visita'])),
           pres.filter(p=>esGabriel(p['Asesor_Presupuesto'])),
           vend.filter(p=>esGabriel(p['Asesor_Presupuesto'])),
           sena.filter(p=>esGabriel(p['Asesor_Presupuesto']))
