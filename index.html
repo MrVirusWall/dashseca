@@ -201,6 +201,26 @@ select.msel:focus{border-color:var(--neon)}
     <div id="acG"></div>
   </div>
 
+  <!-- BOT IA WHATSAPP -->
+  <div class="sec">BOT IA — WHATSAPP <span id="botMesLabel" class="mtd"></span></div>
+  <div class="g3">
+    <div class="kpi" style="--ac:var(--neon)">
+      <div class="kpi-l">% RESPUESTA DEL BOT</div>
+      <div class="kpi-v" id="kBotResp">-</div>
+      <div class="kpi-s" id="kBotRespN">- de - conversaciones</div>
+    </div>
+    <div class="kpi" style="--ac:var(--orange)">
+      <div class="kpi-l">% LLEGÓ A DAR DIRECCIÓN</div>
+      <div class="kpi-v" id="kBotDir">-</div>
+      <div class="kpi-s" id="kBotDirN">-</div>
+    </div>
+    <div class="kpi" style="--ac:var(--green)">
+      <div class="kpi-l">% VISITA CONFIRMADA</div>
+      <div class="kpi-v" id="kBotVis">-</div>
+      <div class="kpi-s" id="kBotVisN">-</div>
+    </div>
+  </div>
+
   <!-- VISITAS DETALLE -->
   <div class="sec">VISITAS</div>
   <div class="g3">
@@ -313,7 +333,7 @@ function normID(v){
 
 // ── ESTADO GLOBAL ─────────────────────────────────────────────────────────────
 let TC=6.86;
-const S={mes:null,asesor:'todos',cobranzas:[],visitas:[],presupuestos:[],kommoLeads:[],metaCampanas:[]};
+const S={mes:null,asesor:'todos',cobranzas:[],visitas:[],presupuestos:[],kommoLeads:[],metaCampanas:[],botStats:[]};
 // mes: {year, month} o null=mes actual
 
 // ── FORMATO ───────────────────────────────────────────────────────────────────
@@ -933,8 +953,30 @@ function renderCobranzas(){
 
 
 
+function renderBotStats(){
+  const{year,month}=getMesActual();
+  const mesKey=(MESES_ES[month]||'').toLowerCase()+' de '+year;
+  const row=S.botStats.find(r=>String(r['Mes']||'').trim().toLowerCase()===mesKey);
+  document.getElementById('botMesLabel').textContent=MESES_ES[month]+' '+year;
+  if(!row){
+    document.getElementById('kBotResp').textContent='-';
+    document.getElementById('kBotRespN').textContent='sin datos este mes';
+    document.getElementById('kBotDir').textContent='-';
+    document.getElementById('kBotDirN').textContent='-';
+    document.getElementById('kBotVis').textContent='-';
+    document.getElementById('kBotVisN').textContent='-';
+    return;
+  }
+  const total=+row['Total']||0;
+  document.getElementById('kBotResp').textContent=(row['PctRespondio']||0)+'%';
+  document.getElementById('kBotRespN').textContent=(row['Respondio']||0)+' de '+total+' conversaciones';
+  document.getElementById('kBotDir').textContent=(row['PctDireccion']||0)+'%';
+  document.getElementById('kBotDirN').textContent=(row['Direccion']||0)+' de '+total;
+  document.getElementById('kBotVis').textContent=(row['PctVisitaConfirmada']||0)+'%';
+  document.getElementById('kBotVisN').textContent=(row['VisitaConfirmada']||0)+' de '+total;
+}
 function renderAll(){
-  renderKPIs();renderMetaKPI();renderFunnel();renderAsesores();renderVisitas();renderCruce();renderMeta();renderCobranzas();
+  renderKPIs();renderMetaKPI();renderFunnel();renderAsesores();renderVisitas();renderCruce();renderMeta();renderCobranzas();renderBotStats();
   document.getElementById('lastUpd').textContent='ACT: '+new Date().toLocaleTimeString('es-BO');
   document.getElementById('tcDisp').textContent='USD 1 = Bs '+TC.toFixed(2);
 }
@@ -1002,12 +1044,15 @@ async function init(){
     const p=await loadSheet(['PresupuestoProspecto','presupuestoprospecto','Presupuesto_Prospecto','Presupuestos'],2025);
     setLoad(60,'CARGANDO KOMMO...');
     const k=await loadSheet(['Leads_Kommo']);
+    setLoad(65,'CARGANDO BOT STATS...');
+    const bs=await fetchSheet('Bot_Stats').catch(()=>[]);
     // Filtrar filas vacías usando la primera columna con valor
     const noEmpty=rows=>rows.filter(r=>Object.values(r).some(v=>v!==''&&v!==null&&v!==undefined));
     S.cobranzas=noEmpty(c);
     S.visitas=noEmpty(v);
     S.presupuestos=noEmpty(p);
     S.kommoLeads=noEmpty(k);
+    S.botStats=noEmpty(bs);
     // Log columnas para verificar
     S.kommoLeads.forEach(l=>{if(l['Campaña_Meta']&&!l['Campana_Meta'])l['Campana_Meta']=l['Campaña_Meta'];});
     setLoad(70,`Cobros:${S.cobranzas.length} Vis:${S.visitas.length} Pres:${S.presupuestos.length} Kommo:${S.kommoLeads.length} — META...`);
