@@ -203,7 +203,7 @@ select.msel:focus{border-color:var(--neon)}
 
   <!-- BOT IA WHATSAPP -->
   <div class="sec">BOT IA — WHATSAPP <span id="botMesLabel" class="mtd"></span></div>
-  <div class="g3">
+  <div class="g5">
     <div class="kpi" style="--ac:var(--neon)">
       <div class="kpi-l">% RESPUESTA DEL BOT</div>
       <div class="kpi-v" id="kBotResp">-</div>
@@ -218,6 +218,17 @@ select.msel:focus{border-color:var(--neon)}
       <div class="kpi-l">% VISITA CONFIRMADA</div>
       <div class="kpi-v" id="kBotVis">-</div>
       <div class="kpi-s" id="kBotVisN">-</div>
+    </div>
+    <div class="kpi" style="--ac:var(--yellow)">
+      <div class="kpi-l">% GENERÓ PRESUPUESTO</div>
+      <div class="kpi-v" id="kBotPresu">-</div>
+      <div class="kpi-s" id="kBotPresuN">-</div>
+    </div>
+    <div class="kpi" style="--ac:var(--purple)">
+      <div class="kpi-l">% VENTA SOBRE VISITAS</div>
+      <div class="kpi-v" id="kBotVenta">-</div>
+      <div class="kpi-s" id="kBotVentaN">-</div>
+      <div class="kpi-u" id="kBotMonto">-</div>
     </div>
   </div>
 
@@ -965,15 +976,26 @@ function renderBotStats(){
     document.getElementById('kBotDirN').textContent='-';
     document.getElementById('kBotVis').textContent='-';
     document.getElementById('kBotVisN').textContent='-';
+    document.getElementById('kBotPresu').textContent='-';
+    document.getElementById('kBotPresuN').textContent='-';
+    document.getElementById('kBotVenta').textContent='-';
+    document.getElementById('kBotVentaN').textContent='-';
+    document.getElementById('kBotMonto').textContent='-';
     return;
   }
   const total=+row['Total']||0;
+  const visitas=+row['VisitaConfirmada']||0;
   document.getElementById('kBotResp').textContent=(row['PctRespondio']||0)+'%';
   document.getElementById('kBotRespN').textContent=(row['Respondio']||0)+' de '+total+' conversaciones';
   document.getElementById('kBotDir').textContent=(row['PctDireccion']||0)+'%';
   document.getElementById('kBotDirN').textContent=(row['Direccion']||0)+' de '+total;
   document.getElementById('kBotVis').textContent=(row['PctVisitaConfirmada']||0)+'%';
-  document.getElementById('kBotVisN').textContent=(row['VisitaConfirmada']||0)+' de '+total;
+  document.getElementById('kBotVisN').textContent=visitas+' de '+total;
+  document.getElementById('kBotPresu').textContent=(row['PctPresupuestos']||0)+'%';
+  document.getElementById('kBotPresuN').textContent=(row['Presupuestos']||0)+' de '+visitas+' visitas';
+  document.getElementById('kBotVenta').textContent=(row['PctVentas']||0)+'%';
+  document.getElementById('kBotVentaN').textContent=(row['Ventas']||0)+' de '+visitas+' visitas';
+  document.getElementById('kBotMonto').textContent=fBs(+row['MontoVendido']||0)+' vendido';
 }
 function renderAll(){
   renderKPIs();renderMetaKPI();renderFunnel();renderAsesores();renderVisitas();renderCruce();renderMeta();renderCobranzas();renderBotStats();
