@@ -203,6 +203,13 @@ select.msel:focus{border-color:var(--neon)}
 
   <!-- BOT IA WHATSAPP -->
   <div class="sec">BOT IA — WHATSAPP <span id="botMesLabel" class="mtd"></span></div>
+  <div class="g3" style="margin-bottom:9px">
+    <div class="kpi" style="--ac:var(--red)">
+      <div class="kpi-l">% NO RESPONDE EL PRIMER MENSAJE</div>
+      <div class="kpi-v" id="kBotNoResp1">-</div>
+      <div class="kpi-s" id="kBotNoResp1N">-</div>
+    </div>
+  </div>
   <div class="g5">
     <div class="kpi" style="--ac:var(--neon)">
       <div class="kpi-l">% RESPUESTA DEL BOT</div>
@@ -970,6 +977,8 @@ function renderBotStats(){
   const row=S.botStats.find(r=>String(r['Mes']||'').trim().toLowerCase()===mesKey);
   document.getElementById('botMesLabel').textContent=MESES_ES[month]+' '+year;
   if(!row){
+    document.getElementById('kBotNoResp1').textContent='-';
+    document.getElementById('kBotNoResp1N').textContent='sin datos este mes';
     document.getElementById('kBotResp').textContent='-';
     document.getElementById('kBotRespN').textContent='sin datos este mes';
     document.getElementById('kBotDir').textContent='-';
@@ -985,6 +994,9 @@ function renderBotStats(){
   }
   const total=+row['Total']||0;
   const visitas=+row['VisitaConfirmada']||0;
+  const respondio=+row['Respondio']||0;
+  document.getElementById('kBotNoResp1').textContent=(row['PctNoRespondioPrimerMsj']||0)+'%';
+  document.getElementById('kBotNoResp1N').textContent=(row['NoRespondioPrimerMsj']||0)+' de '+respondio+' prospectos no contestaron tras el primer mensaje del bot';
   document.getElementById('kBotResp').textContent=(row['PctRespondio']||0)+'%';
   document.getElementById('kBotRespN').textContent=(row['Respondio']||0)+' de '+total+' conversaciones';
   document.getElementById('kBotDir').textContent=(row['PctDireccion']||0)+'%';
