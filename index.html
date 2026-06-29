@@ -244,6 +244,12 @@ select.msel:focus{border-color:var(--neon)}
     </div>
   </div>
 
+  <!-- TEST A/B/A/B PRIMER MENSAJE -->
+  <div class="sec">TEST A/B/A/B — PRIMER MENSAJE (TEXTO A · TEXTO B · AUDIO MARTIN · AUDIO XIOMARA)</div>
+  <div class="panel" style="margin-bottom:12px">
+    <div id="variantesAB" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px"></div>
+  </div>
+
   <!-- VISITAS DETALLE -->
   <div class="sec">VISITAS</div>
   <div class="g3">
@@ -356,7 +362,7 @@ function normID(v){
 
 // ── ESTADO GLOBAL ─────────────────────────────────────────────────────────────
 let TC=6.86;
-const S={mes:null,asesor:'todos',cobranzas:[],visitas:[],presupuestos:[],kommoLeads:[],metaCampanas:[],botStats:[]};
+const S={mes:null,asesor:'todos',cobranzas:[],visitas:[],presupuestos:[],kommoLeads:[],metaCampanas:[],botStats:[],botStatsVariantes:[]};
 // mes: {year, month} o null=mes actual
 
 // ── FORMATO ───────────────────────────────────────────────────────────────────
@@ -1018,8 +1024,39 @@ function renderBotStats(){
   document.getElementById('kBotVentaN').textContent=(row['Ventas']||0)+' de '+visitas+' visitas';
   document.getElementById('kBotMonto').textContent=fBs(+row['MontoVendido']||0)+' vendido';
 }
+function renderVariantesAB(){
+  const{year,month}=getMesActual();
+  const mesKey=(MESES_ES[month]||'').toLowerCase()+' de '+year;
+  const NOMBRES={A:'TEXTO A (actual)',B:'TEXTO B (nuevo)',audio1:'AUDIO MARTIN',audio2:'AUDIO XIOMARA'};
+  const COLORES={A:'neon',B:'orange',audio1:'purple',audio2:'green'};
+  const el=document.getElementById('variantesAB');
+  const filas=S.botStatsVariantes.filter(r=>String(r['Mes']||'').trim().toLowerCase()===mesKey);
+  if(!filas.length){
+    el.innerHTML='<div style="grid-column:1/-1;color:var(--text3);font-family:\'Share Tech Mono\',monospace;font-size:10px;padding:10px 0">Sin datos del test A/B este mes todavía</div>';
+    return;
+  }
+  el.innerHTML=['A','B','audio1','audio2'].map(v=>{
+    const row=filas.find(r=>r['Variante']===v);
+    const nombre=NOMBRES[v]||v;
+    const c=COLORES[v]||'neon';
+    if(!row){
+      return `<div><div style="text-align:center;font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:2px;color:var(--text3);margin-bottom:6px">${nombre}</div><div style="color:var(--text3);font-family:'Share Tech Mono',monospace;font-size:10px;text-align:center">Sin datos</div></div>`;
+    }
+    const steps=[
+      {l:'MENSAJES',n:+row['Mensajes']||0,c},
+      {l:'RESPUESTAS',n:+row['Respondieron']||0,c},
+      {l:'VISITAS',n:+row['Visitas']||0,c},
+      {l:'PRESUPUESTOS',n:+row['Presupuestos']||0,c},
+      {l:'VENTAS',n:+row['Ventas']||0,c}
+    ];
+    return `<div>
+      <div style="text-align:center;font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:2px;color:var(--${c==='neon'?'neon':c});margin-bottom:4px">${nombre}</div>
+      ${fRows(steps)}
+    </div>`;
+  }).join('');
+}
 function renderAll(){
-  renderKPIs();renderMetaKPI();renderFunnel();renderAsesores();renderVisitas();renderCruce();renderMeta();renderCobranzas();renderBotStats();
+  renderKPIs();renderMetaKPI();renderFunnel();renderAsesores();renderVisitas();renderCruce();renderMeta();renderCobranzas();renderBotStats();renderVariantesAB();
   document.getElementById('lastUpd').textContent='ACT: '+new Date().toLocaleTimeString('es-BO');
   document.getElementById('tcDisp').textContent='USD 1 = Bs '+TC.toFixed(2);
 }
@@ -1089,6 +1126,7 @@ async function init(){
     const k=await loadSheet(['Leads_Kommo']);
     setLoad(65,'CARGANDO BOT STATS...');
     const bs=await fetchSheet('Bot_Stats').catch(()=>[]);
+    const bsv=await fetchSheet('Bot_Stats_Variantes').catch(()=>[]);
     // Filtrar filas vacías usando la primera columna con valor
     const noEmpty=rows=>rows.filter(r=>Object.values(r).some(v=>v!==''&&v!==null&&v!==undefined));
     S.cobranzas=noEmpty(c);
@@ -1096,6 +1134,7 @@ async function init(){
     S.presupuestos=noEmpty(p);
     S.kommoLeads=noEmpty(k);
     S.botStats=noEmpty(bs);
+    S.botStatsVariantes=noEmpty(bsv);
     // Log columnas para verificar
     S.kommoLeads.forEach(l=>{if(l['Campaña_Meta']&&!l['Campana_Meta'])l['Campana_Meta']=l['Campaña_Meta'];});
     setLoad(70,`Cobros:${S.cobranzas.length} Vis:${S.visitas.length} Pres:${S.presupuestos.length} Kommo:${S.kommoLeads.length} — META...`);
