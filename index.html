@@ -203,11 +203,16 @@ select.msel:focus{border-color:var(--neon)}
 
   <!-- BOT IA WHATSAPP -->
   <div class="sec">BOT IA — WHATSAPP <span id="botMesLabel" class="mtd"></span></div>
-  <div class="g3" style="margin-bottom:9px">
+  <div class="g2" style="margin-bottom:9px">
     <div class="kpi" style="--ac:var(--red)">
       <div class="kpi-l">% NO RESPONDE EL PRIMER MENSAJE</div>
       <div class="kpi-v" id="kBotNoResp1">-</div>
       <div class="kpi-s" id="kBotNoResp1N">-</div>
+    </div>
+    <div class="kpi" style="--ac:var(--red)">
+      <div class="kpi-l">% VISITAS CANCELADAS (del bot)</div>
+      <div class="kpi-v" id="kBotCanc">-</div>
+      <div class="kpi-s" id="kBotCancN">-</div>
     </div>
   </div>
   <div class="g5">
@@ -979,6 +984,8 @@ function renderBotStats(){
   if(!row){
     document.getElementById('kBotNoResp1').textContent='-';
     document.getElementById('kBotNoResp1N').textContent='sin datos este mes';
+    document.getElementById('kBotCanc').textContent='-';
+    document.getElementById('kBotCancN').textContent='-';
     document.getElementById('kBotResp').textContent='-';
     document.getElementById('kBotRespN').textContent='sin datos este mes';
     document.getElementById('kBotDir').textContent='-';
@@ -997,6 +1004,8 @@ function renderBotStats(){
   const respondio=+row['Respondio']||0;
   document.getElementById('kBotNoResp1').textContent=(row['PctNoRespondioPrimerMsj']||0)+'%';
   document.getElementById('kBotNoResp1N').textContent=(row['NoRespondioPrimerMsj']||0)+' de '+respondio+' prospectos no contestaron tras el primer mensaje del bot';
+  document.getElementById('kBotCanc').textContent=(row['PctVisitaCancelada']||0)+'%';
+  document.getElementById('kBotCancN').textContent=(row['VisitaCancelada']||0)+' de '+visitas+' visitas agendadas por el bot se cancelaron';
   document.getElementById('kBotResp').textContent=(row['PctRespondio']||0)+'%';
   document.getElementById('kBotRespN').textContent=(row['Respondio']||0)+' de '+total+' conversaciones';
   document.getElementById('kBotDir').textContent=(row['PctDireccion']||0)+'%';
