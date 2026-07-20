@@ -322,8 +322,7 @@ select.msel:focus{border-color:var(--neon)}
 const CFG={
   SHEET_ID:'1PwYUmaX800n4H_kYGWlqleAbdS5h3bBivHswaAMem6Y',
   KOMMO_SHEET_ID:'1Vdfzynrqb9Ohvo4H6u68M2gI78WQTBlnZ4Bj_9amOH8',
-  META_TOKEN:'EAApxMav6MwgBRlEftnZBKiHOhRpGDaGudU7kQBB95AvTkVEiVbctuTDgQZBHhhGZAg7JAoECKZB0WpTUjbJEHtW9gqEytpHUZC6aEDFTDQJIX8ceQEHWQfGK0nhCYhMdA9Up2vRGbL0v8npSUUlhzonrxLUU8daK05Y4GH2bmQrtKaBflNSR3mZB5VNNPtwQZDZD',
-  META_ACCOUNT:'act_247497515813155',
+  META_PROXY:'https://n8n.iallama.com/webhook/secaforte-meta-proxy',
 };
 
 // ── TABLA MAESTRA USUARIOS ────────────────────────────────────────────────────
@@ -613,20 +612,12 @@ async function fetchSheet(name, query=''){
 async function fetchMeta(){
   try{
     const{year,month}=getMesActual();
-    const f=new Date(year,month,1),t=new Date(year,month+1,0);
-    const df=f.toISOString().split('T')[0],dt=t.toISOString().split('T')[0];
-    const timeRange=JSON.stringify({since:df,until:dt});
-    // Traer campañas con insights del período exacto
-    const url='https://graph.facebook.com/v19.0/'+CFG.META_ACCOUNT+'/campaigns'
-      +'?fields='+encodeURIComponent('name,status,insights.time_range('+timeRange+'){spend,actions,impressions,reach}')
-      +'&limit=50'
-      +'&access_token='+CFG.META_TOKEN;
+    // El token de Meta vive en n8n (credencial), nunca en el cliente — ver Secaforte - Meta Ads Proxy (Dashboard)
+    const url=CFG.META_PROXY+'?year='+year+'&month='+month;
     const r=await fetch(url);
     const d=await r.json();
     if(d.error){console.warn('Meta API error:',d.error.message);return[];}
     const camps=d&&d.data?d.data:[];
-    // Log action types para debug
-
     return camps;
   }catch(e){console.warn('fetchMeta error:',e);return[];}
 }
