@@ -777,8 +777,8 @@ function renderAsesores(){
         ${vlCard('XIOMARA','var(--purple)',xiom)}
       </div>
       <div>
-        ${sep('VL — AGENDA')}
-        ${vlCard('LUIS CARLOS','var(--neon2)',luisc)}
+        ${sep('BOT — AGENDA')}
+        ${vlCard('BOT','var(--green)',luisc)}
       </div>
     </div>`;
 }
@@ -790,13 +790,13 @@ function renderVisitas(){
   const luisc=vis.filter(v=>esLuisCarlos(v['Creador_Visita']));
   const vlCard=(nombre,color,arr)=>
     `<div class="acc" style="margin-bottom:6px">
-      <div class="acn" style="color:${color}">${nombre} <span style="font-size:8px;color:var(--text3);font-family:'Share Tech Mono',monospace">VL</span></div>
+      <div class="acn" style="color:${color}">${nombre} <span style="font-size:8px;color:var(--text3);font-family:'Share Tech Mono',monospace">${nombre==='BOT'?'AUTO':'VL'}</span></div>
       <div class="acs">AGENDADAS <span>${arr.length}</span></div>
       <div class="acs">REALIZADAS <span style="color:var(--green)">${arr.filter(v=>v['Estado_Visita']==='Realizada').length}</span></div>
       <div class="acs">CANCELADAS <span style="color:var(--red)">${arr.filter(v=>v['Estado_Visita']==='Cancelada').length}</span></div>
       <div class="acs">PENDIENTES <span style="color:var(--yellow)">${arr.filter(v=>v['Estado_Visita']==='Pendiente').length}</span></div>
     </div>`;
-  document.getElementById('vlCards').innerHTML=vlCard('XIOMARA','var(--purple)',xiom)+vlCard('LUIS CARLOS','var(--neon2)',luisc);
+  document.getElementById('vlCards').innerHTML=vlCard('XIOMARA','var(--purple)',xiom)+vlCard('BOT','var(--green)',luisc);
 
   const tipos={};vis.forEach(v=>{const t=v['Motivo_Visita']||'Sin tipo';tipos[t]=(tipos[t]||0)+1;});
   miniBar(document.getElementById('vTipo'),Object.entries(tipos).sort((a,b)=>b[1]-a[1]),'var(--neon)',null);
