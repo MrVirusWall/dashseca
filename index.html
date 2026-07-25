@@ -821,11 +821,16 @@ function renderCruce(){
     :'Campana_Meta';
 
   const telCamp={};
+  // Origen_Canal: 'WABA' o 'Piloto' (LITE), lo agrega el sync de Apps Script a partir del tag 'Bot' del lead.
+  // Sirve de fallback cuando el lead no tiene campaña de Meta cargada (bot, o atención manual por LITE).
+  const telOrigen={};
   S.kommoLeads.forEach(l=>{
     const tel=normTel(kommoTelCol?l[kommoTelCol]:'');
     const campRaw=kommoCampCol?l[kommoCampCol]:'';
     const camp=campRaw?String(campRaw).trim():'';
     if(tel&&camp)telCamp[tel]=camp;
+    const origen=l['Origen_Canal']?String(l['Origen_Canal']).trim():'';
+    if(tel&&origen)telOrigen[tel]=origen;
   });
 
 
@@ -886,12 +891,17 @@ function renderCruce(){
     }
   });
 
+  // Fallback cuando no hay campaña de Meta: bucket "Sin campaña (WABA)" / "Sin campaña (Piloto)"
+  // en vez de descartar la fila en silencio. Así presupuestos/ventas de leads del bot o
+  // atendidos manualmente por LITE siguen apareciendo en la tabla, con su canal identificado.
+  const campOfTel=tel=>telCamp[tel]||(tel?'Sin campaña ('+(telOrigen[tel]||'canal desconocido')+')':null);
+
   // Presupuestos del mes — cruce directo por tel, luego por ID_Prospecto
   S.presupuestos.filter(p=>inMes(p['Fecha_Presupuesto']||p['FechaCreacion_Presupuesto'])).forEach(p=>{
     const tel=normTel(p['Telefono']||p['Teléfono']||'');
     const id=normID(p['ID_Prospecto']);
     const idPres=normID(p['ID_Presupuesto']);
-    const camp=telCamp[tel]||idCamp[id]||idCamp['pres_'+idPres];
+    const camp=telCamp[tel]||idCamp[id]||idCamp['pres_'+idPres]||campOfTel(tel);
     if(!camp)return;
     getCamp(camp).pres++;
   });
@@ -901,7 +911,7 @@ function renderCruce(){
     const tel=normTel(p['Telefono']||p['Teléfono']||'');
     const id=normID(p['ID_Prospecto']);
     const idPres=normID(p['ID_Presupuesto']);
-    const camp=telCamp[tel]||idCamp[id]||idCamp['pres_'+idPres];
+    const camp=telCamp[tel]||idCamp[id]||idCamp['pres_'+idPres]||campOfTel(tel);
     if(!camp)return;
     getCamp(camp).ventas++;
   });
