@@ -136,7 +136,6 @@ select.msel:focus{border-color:var(--neon)}
     <div class="bg" id="aBtns">
       <button class="btn active" onclick="setAsesor('todos')">TODOS</button>
       <button class="btn" onclick="setAsesor('saul')">SAÚL</button>
-      <button class="btn" onclick="setAsesor('gabriel')">GABRIEL</button>
     </div>
     <!-- Tipo de cambio -->
     <div class="tcw">
@@ -753,7 +752,7 @@ function renderAsesores(){
 
   const sep=(txt)=>`<div style="font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--text3);letter-spacing:2px;padding:4px 0 6px;border-bottom:1px solid var(--border);margin-bottom:6px">${txt}</div>`;
   document.getElementById('acG').innerHTML=`
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:9px;align-items:start">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;align-items:start">
       <div>
         ${sep('ATO — CIERRE')}
         ${atoCard('SAÚL','var(--neon)',
@@ -761,15 +760,6 @@ function renderAsesores(){
           pres.filter(p=>esSaul(p['Asesor_Presupuesto'])),
           vend.filter(p=>esSaul(p['Asesor_Presupuesto'])),
           sena.filter(p=>esSaul(p['Asesor_Presupuesto']))
-        )}
-      </div>
-      <div>
-        ${sep('ATO — CIERRE')}
-        ${atoCard('GABRIEL','var(--orange)',
-          fVisReal().filter(v=>esGabriel(v['Asesor_Visita'])),
-          pres.filter(p=>esGabriel(p['Asesor_Presupuesto'])),
-          vend.filter(p=>esGabriel(p['Asesor_Presupuesto'])),
-          sena.filter(p=>esGabriel(p['Asesor_Presupuesto']))
         )}
       </div>
       <div>
