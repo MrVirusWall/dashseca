@@ -952,31 +952,30 @@ function renderCruce(){
   }).join(''):'<div style="color:var(--text3);font-family:\'Share Tech Mono\',monospace;font-size:10px;padding:10px 0">Sin datos con atribución en el período</div>';
 }
 
-// Mapea ID_Prospecto -> origen real de SU visita de presupuesto (Bot o Xiomara
-// directa), usando Creador_Visita. Se usa para saber si una venta salió de una
-// visita que agendó el bot o una que Xiomara consiguió y cargó directo en la app
-// (el bot siempre agenda a nombre de Xiomara como Vendedor_Prospecto, así que esa
-// columna sola no alcanza para distinguir — Creador_Visita sí es confiable).
-function origenPorProspecto(){
+// Mapea Teléfono -> origen real del lead (Bot o Xiomara/manual), usando Origen_Canal
+// de Leads_Kommo (WABA = lo atendió el bot, via el tag "Bot" que pone Kommo).
+// OJO: el cruce por ID_Prospecto no sirve -- los presupuestos reales de Saúl no
+// traen ID_Prospecto cargado (viene vacío), así que el único dato confiable en
+// común entre una venta y su origen es el teléfono, igual que el resto del cruce
+// de campañas. Solo hay 2 puestos comerciales (Xiomara de VL, Saúl de ATO), así
+// que por eliminación: si el bot no la generó, la consiguió Xiomara directo.
+function origenPorTelefono(){
   const map={};
-  S.visitas.forEach(v=>{
-    const mot=String(v['Motivo_Visita']||'').toLowerCase();
-    if(!mot.includes('presup'))return;
-    const id=normID(v['ID_Prospecto']);
-    if(!id||map[id])return;
-    if(esCreadorBot(v['Creador_Visita']))map[id]='Bot';
-    else if(esCreadorXiomaraDirecta(v['Creador_Visita']))map[id]='Xiomara';
+  S.kommoLeads.forEach(l=>{
+    const tel=normTel(l['Telefono']);
+    if(!tel)return;
+    if(String(l['Origen_Canal']||'').trim()==='WABA')map[tel]='Bot';
   });
   return map;
 }
 
 function renderOrigenVentas(){
-  const mapa=origenPorProspecto();
+  const mapa=origenPorTelefono();
   const vend=fVendidos();
-  const buckets={Bot:{n:0,monto:0},Xiomara:{n:0,monto:0},'Sin dato':{n:0,monto:0}};
+  const buckets={Bot:{n:0,monto:0},Xiomara:{n:0,monto:0}};
   vend.forEach(p=>{
-    const id=normID(p['ID_Prospecto']);
-    const origen=mapa[id]||'Sin dato';
+    const tel=normTel(p['Telefono']||p['Teléfono']||'');
+    const origen=mapa[tel]==='Bot'?'Bot':'Xiomara';
     const monto=+p['Total_Presupuesto']||+p['SubTotal_Presupuesto']||0;
     buckets[origen].n++;
     buckets[origen].monto+=monto;
@@ -987,10 +986,9 @@ function renderOrigenVentas(){
     <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text2);margin-top:4px">${d.n} ventas · ${fU(d.monto/TC)} USD</div>
   </div>`;
   document.getElementById('origenVentas').innerHTML=
-    `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px">
+    `<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
       ${card('BOT','var(--green)',buckets.Bot)}
-      ${card('XIOMARA (DIRECTA)','var(--purple)',buckets.Xiomara)}
-      ${card('SIN DATO / OTRO ORIGEN','var(--text3)',buckets['Sin dato'])}
+      ${card('XIOMARA (DIRECTA / MANUAL)','var(--purple)',buckets.Xiomara)}
     </div>`;
 }
 
