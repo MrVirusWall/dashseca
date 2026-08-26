@@ -290,6 +290,12 @@ select.msel:focus{border-color:var(--neon)}
     </div>
   </div>
 
+  <!-- VENTAS POR ORIGEN: BOT vs XIOMARA DIRECTA -->
+  <div class="panel" style="margin-bottom:12px">
+    <div class="ptitle">VENTAS POR ORIGEN — BOT vs XIOMARA (DIRECTA)</div>
+    <div id="origenVentas"></div>
+  </div>
+
   <!-- META + COBRANZAS -->
   <div class="g2">
     <div class="panel">
@@ -343,6 +349,12 @@ function esSaul(v){return rN(v)==='Saúl';}
 function esGabriel(v){return rN(v)==='Gabriel';}
 function esXiomara(v){return rN(v)==='Xiomara';}
 function esLuisCarlos(v){return rN(v)==='Luis Carlos';}
+// Origen real de la visita: el bot agenda usando la cuenta pirkacrm@gmail.com,
+// Xiomara agenda directo en la app con pirkavlocal@gmail.com. Antes la tarjeta
+// "BOT" filtraba por "Luis Carlos" (Creador_Visita nunca es eso para el bot),
+// asi que siempre daba vacio o datos de otra cosa.
+function esCreadorBot(v){return String(v||'').trim().toLowerCase()==='pirkacrm@gmail.com';}
+function esCreadorXiomaraDirecta(v){return String(v||'').trim().toLowerCase()==='pirkavlocal@gmail.com';}
 
 // ── NORMALIZAR TELÉFONO ───────────────────────────────────────────────────────
 // Extrae los últimos 8 dígitos para comparar sin importar formato
@@ -701,7 +713,7 @@ function renderAsesores(){
   // VL: todas las visitas del período (no solo presupuesto) para contar agendadas
   const visAll=S.visitas.filter(v=>inMes(v['FechaHora_Visita']));
   const xiom=visAll.filter(v=>esXiomara(v['Creador_Visita']));
-  const luisc=visAll.filter(v=>esLuisCarlos(v['Creador_Visita']));
+  const luisc=visAll.filter(v=>esCreadorBot(v['Creador_Visita']));
 
   const statRow=(label,val,color)=>`
     <div style="text-align:center;margin-bottom:8px">
@@ -777,7 +789,7 @@ function renderVisitas(){
   const vis=fVis();
   // VL cards — por Creador_Visita (email)
   const xiom=vis.filter(v=>esXiomara(v['Creador_Visita']));
-  const luisc=vis.filter(v=>esLuisCarlos(v['Creador_Visita']));
+  const luisc=vis.filter(v=>esCreadorBot(v['Creador_Visita']));
   const vlCard=(nombre,color,arr)=>
     `<div class="acc" style="margin-bottom:6px">
       <div class="acn" style="color:${color}">${nombre} <span style="font-size:8px;color:var(--text3);font-family:'Share Tech Mono',monospace">${nombre==='BOT'?'AUTO':'VL'}</span></div>
@@ -940,6 +952,48 @@ function renderCruce(){
   }).join(''):'<div style="color:var(--text3);font-family:\'Share Tech Mono\',monospace;font-size:10px;padding:10px 0">Sin datos con atribución en el período</div>';
 }
 
+// Mapea ID_Prospecto -> origen real de SU visita de presupuesto (Bot o Xiomara
+// directa), usando Creador_Visita. Se usa para saber si una venta salió de una
+// visita que agendó el bot o una que Xiomara consiguió y cargó directo en la app
+// (el bot siempre agenda a nombre de Xiomara como Vendedor_Prospecto, así que esa
+// columna sola no alcanza para distinguir — Creador_Visita sí es confiable).
+function origenPorProspecto(){
+  const map={};
+  S.visitas.forEach(v=>{
+    const mot=String(v['Motivo_Visita']||'').toLowerCase();
+    if(!mot.includes('presup'))return;
+    const id=normID(v['ID_Prospecto']);
+    if(!id||map[id])return;
+    if(esCreadorBot(v['Creador_Visita']))map[id]='Bot';
+    else if(esCreadorXiomaraDirecta(v['Creador_Visita']))map[id]='Xiomara';
+  });
+  return map;
+}
+
+function renderOrigenVentas(){
+  const mapa=origenPorProspecto();
+  const vend=fVendidos();
+  const buckets={Bot:{n:0,monto:0},Xiomara:{n:0,monto:0},'Sin dato':{n:0,monto:0}};
+  vend.forEach(p=>{
+    const id=normID(p['ID_Prospecto']);
+    const origen=mapa[id]||'Sin dato';
+    const monto=+p['Total_Presupuesto']||+p['SubTotal_Presupuesto']||0;
+    buckets[origen].n++;
+    buckets[origen].monto+=monto;
+  });
+  const card=(nombre,color,d)=>`<div class="acc" style="text-align:center;padding:14px 10px">
+    <div style="font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:2px;color:${color};margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border)">${nombre}</div>
+    <div style="font-family:'Oswald',sans-serif;font-size:22px;font-weight:600;color:${color};line-height:1">${fBs(d.monto)}</div>
+    <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text2);margin-top:4px">${d.n} ventas · ${fU(d.monto/TC)} USD</div>
+  </div>`;
+  document.getElementById('origenVentas').innerHTML=
+    `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px">
+      ${card('BOT','var(--green)',buckets.Bot)}
+      ${card('XIOMARA (DIRECTA)','var(--purple)',buckets.Xiomara)}
+      ${card('SIN DATO / OTRO ORIGEN','var(--text3)',buckets['Sin dato'])}
+    </div>`;
+}
+
 function renderMeta(){
   if(!S.metaCampanas.length){document.getElementById('mTb').innerHTML='<tr><td colspan="6" style="color:var(--red);font-size:10px">No se pudo cargar Meta</td></tr>';return;}
   document.getElementById('mTb').innerHTML=S.metaCampanas.map(c=>{
@@ -1048,7 +1102,7 @@ function renderVariantesAB(){
   }).join('');
 }
 function renderAll(){
-  renderKPIs();renderMetaKPI();renderFunnel();renderAsesores();renderVisitas();renderCruce();renderMeta();renderCobranzas();renderBotStats();renderVariantesAB();
+  renderKPIs();renderMetaKPI();renderFunnel();renderAsesores();renderVisitas();renderCruce();renderOrigenVentas();renderMeta();renderCobranzas();renderBotStats();renderVariantesAB();
   document.getElementById('lastUpd').textContent='ACT: '+new Date().toLocaleTimeString('es-BO');
   document.getElementById('tcDisp').textContent='USD 1 = Bs '+TC.toFixed(2);
 }
